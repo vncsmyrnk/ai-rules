@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_INDEX = ROOT / "index" / "rules-index.json"
+
+LANG_HINTS = {
+    "go": {"go", "golang"},
+    "lua": {"lua"},
+    "nix": {"nix", "nixos", "flake", "flakes"},
+    "zig": {"zig"},
+}
+
+TOPIC_TAG_HINTS = {
+    "rest": {"rest", "api", "http"},
+    "cli": {"cli", "gnu", "posix", "shell", "command"},
+    "security": {"security", "secure", "auth", "permission", "secret", "sanitize"},
+    "testing": {"test", "tests", "testing", "regression", "quality"},
+    "error": {"error", "errors", "exception", "failure", "robustness", "reliability"},
+    "architecture": {"architecture", "hexagonal", "clean", "soc", "decoupling", "modularity"},
+    "simplicity": {"kiss", "yagni", "pragmatic", "simple", "simplicity"},
+}
+
+TOPIC_SCOPE_HINTS = {
+    "rest": {"api"},
+    "cli": {"cli"},
+    "security": {"security"},
+    "testing": {"quality"},
+    "architecture": {"architecture"},
+    "simplicity": {"global", "code-quality"},
+    "error": {"reliability"},
+    "review": {"workflow"},
+    "implementation": {"workflow"},
+    "bug-fix": {"workflow"},
+    "refactor": {"workflow"},
+}
+
+
+def tokenize(text: str):
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def infer_languages(tokens):
+    found = set()
+    for lang, hints in LANG_HINTS.items():
+        if tokens & hints:
+            found.add(lang)
+    return found
+
+
+def infer_topics(tokens):
+    found = set()
+    for topic, hints in TOPIC_TAG_HINTS.items():
+        if tokens & hints:
+            found.add(topic)
+
+    workflow_hints = {
+        "review": {"review", "audit"},
+        "implementation": {"implement", "implementation", "build", "create"},
+        "bug-fix": {"bug", "fix", "defect", "regression"},
+        "refactor": {"refactor", "cleanup", "restructure"},
+    }
+    for topic, hints in workflow_hints.items():
+        if tokens & hints:
+            found.add(topic)
+
+    return found
+
+
+def load_index(path: Path):
+    if not path.exists():
+        raise FileNotFoundError(f"index file not found: {path}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def deterministic_filter(rules, langs, topics, allowed_categories):
+    out = []
+    for r in rules:
+        category = r.get("category", "")
+        rid = (r.get("id", "") or "").lower()
+        tags = {t.lower() for t in r.get("tags", [])}
+        scope = (r.get("scope", "") or "").lower()
+
+        if allowed_categories and category not in allowed_categories:
+            continue
+
+        keep = True
+
+        if langs and category == "languages":
+            keep = any(lang in rid or lang in tags for lang in langs)
+
+        if keep and topics:
+            topic_tag_pool = set()
+            topic_scope_pool = set()
+            for t in topics:
+                topic_tag_pool |= TOPIC_TAG_HINTS.get(t, set())
+                topic_scope_pool |= TOPIC_SCOPE_HINTS.get(t, set())
+
+            topic_match = bool(tags & topic_tag_pool) or (scope in topic_scope_pool)
+            if category == "principles":
+                keep = topic_match or scope == "global" or rid == "priority-model"
+            elif category == "workflows":
+                keep = topic_match or scope == "workflow"
+
+        if keep:
+            out.append(r)
+
+    return out
+
+
+def score_rule(rule, prompt_tokens, langs, topics):
+    rid = (rule.get("id", "") or "").lower()
+    title = (rule.get("title", "") or "").lower()
+    scope = (rule.get("scope", "") or "").lower()
+    tags = {t.lower() for t in rule.get("tags", [])}
+    keywords = set(rule.get("keywords", []))
+
+    score = 0
+    reasons = []
+
+    id_tokens = tokenize(rid.replace("-", " "))
+    title_tokens = tokenize(title)
+
+    exact_hits = len(prompt_tokens & id_tokens)
+    if exact_hits:
+        score += 120 * exact_hits
+        reasons.append(f"id-token-match:{exact_hits}")
+
+    tag_hits = len(prompt_tokens & tags)
+    if tag_hits:
+        score += 80 * tag_hits
+        reasons.append(f"tag-match:{tag_hits}")
+
+    keyword_hits = len(prompt_tokens & keywords)
+    if keyword_hits:
+        bonus = min(60, keyword_hits * 10)
+        score += bonus
+        reasons.append(f"keyword-match:{keyword_hits}")
+
+    title_hits = len(prompt_tokens & title_tokens)
+    if title_hits:
+        score += min(40, title_hits * 10)
+        reasons.append(f"title-match:{title_hits}")
+
+    if langs and rule.get("category") == "languages":
+        if any(lang in rid or lang in tags for lang in langs):
+            score += 140
+            reasons.append("language-match")
+
+    if topics:
+        topic_scope_pool = set()
+        for t in topics:
+            topic_scope_pool |= TOPIC_SCOPE_HINTS.get(t, set())
+        if scope in topic_scope_pool:
+            score += 40
+            reasons.append("scope-match")
+
+    try:
+        priority = int(rule.get("priority", 99))
+    except Exception:
+        priority = 99
+    precedence_bonus = max(0, 100 - priority)
+    score += precedence_bonus
+    reasons.append(f"priority-bonus:{precedence_bonus}")
+
+    return score, reasons
+
+
+def assemble_prompt(root: Path, selected):
+    chunks = []
+    for row in selected:
+        path = row["path"]
+        p = root / path
+        content = p.read_text(encoding="utf-8")
+        chunks.append(f"### Rule: {row['id']} ({path})\n\n{content.strip()}\n")
+    return "\n\n".join(chunks)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Deterministic rule selector for prompts")
+    parser.add_argument("prompt", help="User prompt text")
+    parser.add_argument("--index", default=str(DEFAULT_INDEX), help="Path to rules index JSON")
+    parser.add_argument("--top-k", type=int, default=8, help="Number of rules to return")
+    parser.add_argument(
+        "--category",
+        default="principles,languages,workflows",
+        help="Comma-separated categories to include (principles,languages,workflows)",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["json", "prompt"],
+        default="json",
+        help="Output format",
+    )
+    args = parser.parse_args()
+
+    index_path = Path(args.index)
+    if not index_path.is_absolute():
+        index_path = ROOT / index_path
+
+    data = load_index(index_path)
+    rules = data.get("rules", [])
+
+    prompt_tokens = tokenize(args.prompt)
+    langs = infer_languages(prompt_tokens)
+    topics = infer_topics(prompt_tokens)
+
+    valid_categories = {"principles", "languages", "workflows"}
+    allowed_categories = {
+        c.strip().lower()
+        for c in args.category.split(",")
+        if c.strip()
+    }
+    allowed_categories = {c for c in allowed_categories if c in valid_categories}
+    if not allowed_categories:
+        allowed_categories = set(valid_categories)
+
+    filtered = deterministic_filter(rules, langs, topics, allowed_categories)
+
+    scored = []
+    for rule in filtered:
+        score, reasons = score_rule(rule, prompt_tokens, langs, topics)
+        scored.append({
+            "id": rule.get("id"),
+            "path": rule.get("path"),
+            "title": rule.get("title"),
+            "category": rule.get("category"),
+            "scope": rule.get("scope"),
+            "priority": rule.get("priority"),
+            "score": score,
+            "reasons": reasons,
+        })
+
+    scored.sort(key=lambda x: (-x["score"], x["path"]))
+    selected = scored[: args.top_k]
+
+    if args.format == "prompt":
+        print(assemble_prompt(ROOT, selected))
+        return
+
+    out = {
+        "prompt": args.prompt,
+        "tokens": sorted(prompt_tokens),
+        "inferred_languages": sorted(langs),
+        "inferred_topics": sorted(topics),
+        "categories": sorted(allowed_categories),
+        "candidates": len(filtered),
+        "selected": selected,
+    }
+    print(json.dumps(out, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

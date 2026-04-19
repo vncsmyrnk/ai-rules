@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_INPUT_DIRS = ["principles", "languages", "workflows"]
+DEFAULT_OUTPUT = ROOT / "index" / "rules-index.json"
+
+
+def parse_frontmatter(text: str):
+    if not text.startswith("---\n"):
+        return {}, text
+
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return {}, text
+
+    fm_text = text[4:end]
+    body = text[end + 5 :]
+
+    data = {}
+    current_list_key = None
+
+    for raw_line in fm_text.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+
+        if re.match(r"^\s*-\s+", line) and current_list_key:
+            item = re.sub(r"^\s*-\s+", "", line).strip()
+            data.setdefault(current_list_key, []).append(item)
+            continue
+
+        m = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
+        if not m:
+            continue
+
+        key, value = m.group(1), m.group(2).strip()
+        if value == "":
+            data[key] = []
+            current_list_key = key
+            continue
+
+        current_list_key = None
+        if value.isdigit():
+            data[key] = int(value)
+        else:
+            data[key] = value
+
+    return data, body
+
+
+def extract_title(body: str, fallback: str) -> str:
+    for line in body.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return fallback
+
+
+def normalize_tokenize(text: str):
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def build_entry(root: Path, filepath: Path):
+    rel = filepath.relative_to(root).as_posix()
+    raw = filepath.read_text(encoding="utf-8")
+    frontmatter, body = parse_frontmatter(raw)
+
+    stem = filepath.stem
+    title = extract_title(body, stem.replace("-", " ").title())
+
+    tags = frontmatter.get("tags", [])
+    if not isinstance(tags, list):
+        tags = [str(tags)]
+
+    conflicts_with = frontmatter.get("conflicts_with", [])
+    if not isinstance(conflicts_with, list):
+        conflicts_with = [str(conflicts_with)]
+
+    references = frontmatter.get("references", [])
+    if not isinstance(references, list):
+        references = [str(references)]
+
+    priority = frontmatter.get("priority", 99)
+    try:
+        priority = int(priority)
+    except Exception:
+        priority = 99
+
+    rid = str(frontmatter.get("id", stem))
+    scope = str(frontmatter.get("scope", "unspecified"))
+    category = rel.split("/", 1)[0] if "/" in rel else "root"
+
+    keyword_source = " ".join([rid, title, scope] + [str(t) for t in tags])
+    keywords = sorted(set(normalize_tokenize(keyword_source)))
+
+    return {
+        "id": rid,
+        "path": rel,
+        "category": category,
+        "title": title,
+        "scope": scope,
+        "priority": priority,
+        "tags": sorted([str(t) for t in tags]),
+        "applies_when": str(frontmatter.get("applies_when", "")),
+        "conflicts_with": sorted([str(c) for c in conflicts_with]),
+        "decision_rule": str(frontmatter.get("decision_rule", "")),
+        "references": [str(r) for r in references],
+        "keywords": keywords,
+        "content": body.strip(),
+    }
+
+
+def collect_markdown_files(root: Path, input_dirs):
+    files = []
+    for d in input_dirs:
+        base = root / d
+        if not base.exists():
+            continue
+        files.extend(sorted(base.glob("*.md")))
+    return sorted(files)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Build deterministic rules index.")
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Output JSON path")
+    parser.add_argument(
+        "--input-dirs",
+        nargs="+",
+        default=DEFAULT_INPUT_DIRS,
+        help="Directories to index",
+    )
+    args = parser.parse_args()
+
+    root = ROOT
+    output_path = Path(args.output)
+    if not output_path.is_absolute():
+        output_path = root / output_path
+
+    md_files = collect_markdown_files(root, args.input_dirs)
+    entries = [build_entry(root, p) for p in md_files]
+    entries.sort(key=lambda e: e["path"])
+
+    payload = {
+        "version": 1,
+        "generated_from": args.input_dirs,
+        "count": len(entries),
+        "rules": entries,
+    }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    print(f"indexed={len(entries)} output={output_path}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,17 +1,37 @@
 # AI rules
 
-This project provides a structured set of guidelines, principles, and workflows to generate standardized prompts for AI coding agents. Its goal is to improve the quality of AI-generated code, enforce best practices, and minimize hallucinations.
-
-It provides an executable that, given an input of tags separated by inputs, it lists matching documents using `ripgrep`.
+This project provides a structured set of guidelines, principles, workflows, and language rules to build high-quality prompts for AI coding agents.
 
 ## Structure
 
-The repository is organized into four main categories, all utilizing YAML frontmatter tags for easy filtering and discovery:
+- **`principles/`**: Software engineering principles and decision rules.
+- **`workflows/`**: Task-specific execution workflows.
+- **`languages/`**: Language-specific coding guidelines.
+- **`bin/`**: CLI tools for indexing and selecting rules.
+- **`index/`**: Generated deterministic rule index.
 
-- **`principles/`**: Detailed software engineering principles, design patterns, and architectural guidelines. Instructs agents on readability and performance trade-offs.
-- **`workflows/`**: Specific task prompts and step-by-step instructions that agents can execute.
-- **`languages/`**: Language-specific best practices, common code smells, battle-tested frameworks, and links to official documentation.
+## Rule selection MVP
 
-## Install
+The project now includes a deterministic minimum viable retrieval pipeline:
 
-To be documented soon.
+1. Build a stable JSON index from markdown files (`principles/`, `languages/`, `workflows/`).
+2. Apply deterministic hard filtering (language/topic inference).
+3. Apply deterministic scoring and ranking.
+4. Output selected rules as JSON or assembled prompt text.
+
+
+### Build index
+
+- `./bin/rules-index`
+
+This generates `index/rules-index.json` with stable ordering.
+
+### Select rules from a prompt
+
+- JSON output:
+  - `./bin/rules-select "Build a REST API in Go with tests" --top-k 8 --format json`
+- Prompt block output:
+  - `./bin/rules-select "Build a REST API in Go with tests" --top-k 8 --format prompt`
+- Restrict categories:
+  - `./bin/rules-select "Review this API" --category workflows,principles --top-k 8 --format json`
+  - `./bin/rules-select "Write Go code" --category languages --top-k 5 --format json`
