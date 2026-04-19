@@ -1,10 +1,19 @@
 ---
+id: pragmatic-consensus
+priority: 4
+scope: global
 tags:
   - principle
   - pragmatism
   - teamwork
   - decision-making
   - simplicity
+applies_when: Multiple valid solutions exist and complexity trade-offs are unclear.
+conflicts_with:
+  - clean-architecture
+  - hexagonal
+  - separation-of-concerns
+decision_rule: Prefer the simplest maintainable option aligned with project conventions.
 ---
 
 # Pragmatic Consensus
@@ -13,30 +22,28 @@ tags:
 Choose the simplest solution the team can understand, maintain, and ship.
 
 ## Intent
-Balance ideal architecture with delivery speed and team clarity.
+Balance ideal design with delivery speed and team clarity.
 
 ## Apply when
 - Multiple valid implementations exist.
-- A “pure” approach increases complexity without clear value.
+- A “pure” approach adds complexity without clear value.
+
+## Avoid when
+- Simplicity would reduce correctness or security.
 
 ## Do
 - Prefer simple, idiomatic solutions.
 - Reuse standard library/platform features before adding dependencies.
 - Follow established project conventions.
-- Document key trade-offs briefly when needed.
+- Document key trade-offs briefly.
 
 ## Do not
 - Introduce complex patterns without clear need.
 - Optimize prematurely.
 - Refactor readable working code only for theoretical purity.
 
-## Trade-offs
-- Faster delivery and lower cognitive load.
-- May defer “ideal” architecture until justified.
-
 ## Conflict resolution
-- Tie-breaker rule for architecture disagreements.
-- Priority order: Correctness > Existing project conventions > Pragmatic Consensus > Other design principles > Boy Scout cleanup.
+- Follow `principles/_priority-model.md`.
 
 ## Example (pseudo)
 ```pseudo
@@ -48,7 +55,7 @@ parse_config_with_standard_library()
 ```
 
 ## Checklist
-- Is the solution understandable by the current team?
-- Is added abstraction justified by current complexity?
-- Did we avoid unnecessary dependencies/patterns?
+- Is the solution easy for the team to maintain?
+- Is extra abstraction clearly justified?
+- Did we avoid unnecessary dependencies?
 

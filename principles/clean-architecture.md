@@ -1,9 +1,18 @@
 ---
+id: clean-architecture
+priority: 7
+scope: architecture
 tags:
   - principle
   - architecture
   - decoupling
   - separation-of-concerns
+applies_when: Domain complexity is medium/high and multiple integrations exist.
+conflicts_with:
+  - pragmatic-consensus
+  - kiss
+  - yagni
+decision_rule: Isolate business rules from frameworks when complexity justifies layering.
 ---
 
 # Clean Architecture
@@ -15,8 +24,11 @@ Dependencies point inward toward domain policies.
 Protect business rules from framework, UI, and infrastructure churn.
 
 ## Apply when
-- The system has medium/high domain complexity.
+- Domain complexity is medium/high.
 - Multiple interfaces/integrations are expected.
+
+## Avoid when
+- The feature is small and layering adds unnecessary complexity.
 
 ## Do
 - Keep entities/use-cases framework-agnostic.
@@ -28,13 +40,8 @@ Protect business rules from framework, UI, and infrastructure churn.
 - Shape domain models around framework constraints.
 - Put transport/parsing logic inside domain code.
 
-## Trade-offs
-- Better testability and longevity.
-- More upfront structure for simple apps.
-
 ## Conflict resolution
-- For simple tasks, prefer Pragmatic Consensus over heavy layering.
-- Priority order: Correctness > Existing project conventions > Pragmatic Consensus > Clean Architecture > Boy Scout cleanup.
+- Follow `principles/_priority-model.md`.
 
 ## Example (pseudo)
 ```pseudo

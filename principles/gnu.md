@@ -1,10 +1,16 @@
 ---
+id: cli-gnu-posix
+priority: 3
+scope: cli
 tags:
   - principle
   - gnu
   - posix
   - standards
   - cli
+applies_when: Building or editing command-line tools and scripts.
+conflicts_with: []
+decision_rule: Follow project CLI conventions first, then GNU/POSIX defaults.
 ---
 
 # CLI GNU/POSIX Conventions
@@ -18,11 +24,14 @@ Maximize predictability, scriptability, and pipeline compatibility.
 ## Apply when
 - Creating or modifying CLI commands or shell scripts.
 
+## Avoid when
+- The project is not CLI-oriented.
+
 ## Do
 - Provide `-h`/`--help` and `-v`/`--version` when relevant.
 - Support short and long options.
 - Write data output to `stdout`.
-- Write errors/diagnostics to `stderr`.
+- Write errors and diagnostics to `stderr`.
 - Return `0` on success and non-zero on failure.
 
 ## Do not
@@ -30,13 +39,8 @@ Maximize predictability, scriptability, and pipeline compatibility.
 - Print errors to `stdout`.
 - Ignore exit status from invoked commands.
 
-## Trade-offs
-- Standard behavior improves interoperability.
-- Strict conventions may add small implementation overhead.
-
 ## Conflict resolution
-- If project CLI conventions exist, follow them first.
-- Priority order: Correctness > Existing project conventions > GNU/POSIX conventions > Boy Scout cleanup.
+- Follow `principles/_priority-model.md`.
 
 ## Example (pseudo)
 ```pseudo
@@ -50,7 +54,7 @@ exit(1)
 ```
 
 ## Checklist
-- Are help/version flags available where appropriate?
+- Are help/version flags available when appropriate?
 - Are stdout/stderr separated correctly?
 - Are exit codes meaningful?
 

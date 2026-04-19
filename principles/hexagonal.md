@@ -1,10 +1,19 @@
 ---
+id: hexagonal-architecture
+priority: 7
+scope: architecture
 tags:
   - principle
   - architecture
   - ports-and-adapters
   - decoupling
   - testing
+applies_when: Core logic must remain independent from replaceable external systems.
+conflicts_with:
+  - pragmatic-consensus
+  - kiss
+  - yagni
+decision_rule: Use ports/adapters when integration boundaries are central to the problem.
 ---
 
 # Hexagonal Architecture (Ports and Adapters)
@@ -19,6 +28,9 @@ Keep the core independent from transport, storage, and vendor details.
 - The app has multiple external dependencies (DB, queue, API, UI).
 - You need high testability and replaceable integrations.
 
+## Avoid when
+- A simple internal feature does not need replaceable adapters.
+
 ## Do
 - Define ports in the application/domain boundary.
 - Implement adapters outside the core.
@@ -28,13 +40,8 @@ Keep the core independent from transport, storage, and vendor details.
 - Embed database/network/framework calls in domain services.
 - Pass transport objects directly into domain logic.
 
-## Trade-offs
-- Strong isolation and testability.
-- Extra abstractions for small/simple applications.
-
 ## Conflict resolution
-- Prefer simpler layering for low-complexity features (Pragmatic Consensus).
-- Priority order: Correctness > Existing project conventions > Pragmatic Consensus > Hexagonal Architecture > Boy Scout cleanup.
+- Follow `principles/_priority-model.md`.
 
 ## Example (pseudo)
 ```pseudo
