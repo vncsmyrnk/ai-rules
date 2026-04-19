@@ -30,8 +30,10 @@ This generates `index/rules-index.json` with stable ordering.
 
 - JSON output:
   - `./bin/rules-select "Build a REST API in Go with tests" --top-k 8 --format json`
-- Prompt block output:
+- Full selected rule documents:
   - `./bin/rules-select "Build a REST API in Go with tests" --top-k 8 --format prompt`
+- Injected final prompt (markdown template):
+  - `./bin/rules-select "refactor db adapter memory leak" --task "Refactor the database adapter to fix the memory leak." --category principles,workflows --top-k 6 --format injected`
 - Restrict categories:
   - `./bin/rules-select "Review this API" --category workflows,principles --top-k 8 --format json`
   - `./bin/rules-select "Write Go code" --category languages --top-k 5 --format json`

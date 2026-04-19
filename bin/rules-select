@@ -170,6 +170,68 @@ def score_rule(rule, prompt_tokens, langs, topics):
     return score, reasons
 
 
+def extract_section_lines(markdown_text: str, section_name: str):
+    lines = markdown_text.splitlines()
+    target = f"## {section_name}".lower()
+    in_section = False
+    collected = []
+
+    for line in lines:
+        lower = line.strip().lower()
+        if lower.startswith("## "):
+            if in_section:
+                break
+            in_section = lower == target
+            continue
+
+        if in_section:
+            collected.append(line)
+
+    return [l for l in collected if l.strip()]
+
+
+def compact_rule_text(rule):
+    title = rule.get("title") or rule.get("id")
+    path = rule.get("path")
+    body = rule.get("content", "")
+
+    principle_lines = extract_section_lines(body, "Principle")
+    goal_lines = extract_section_lines(body, "Goal")
+
+    headline = ""
+    for line in principle_lines + goal_lines:
+        s = line.strip()
+        if s and not s.startswith("-"):
+            headline = s
+            break
+
+    do_lines = [l.strip() for l in extract_section_lines(body, "Do") if l.strip().startswith("-")][:4]
+    do_not_lines = [l.strip() for l in extract_section_lines(body, "Do not") if l.strip().startswith("-")][:3]
+    steps_lines = [l.strip() for l in extract_section_lines(body, "Steps") if re.match(r"^\d+\.\s+", l.strip())][:3]
+    done_lines = [l.strip() for l in extract_section_lines(body, "Done criteria") if l.strip().startswith("-")][:3]
+
+    parts = [f"### {title} (`{path}`)"]
+    if headline:
+        parts.append(f"- Rule: {headline}")
+    if do_lines:
+        parts.append("- Do:")
+        parts.extend([f"  {line}" for line in do_lines])
+    if do_not_lines:
+        parts.append("- Do not:")
+        parts.extend([f"  {line}" for line in do_not_lines])
+    if steps_lines:
+        parts.append("- Steps:")
+        parts.extend([f"  {line}" for line in steps_lines])
+    if done_lines:
+        parts.append("- Done criteria:")
+        parts.extend([f"  {line}" for line in done_lines])
+
+    if len(parts) == 1:
+        parts.append(f"- Use `{title}` as guidance for this task.")
+
+    return "\n".join(parts)
+
+
 def assemble_prompt(root: Path, selected):
     chunks = []
     for row in selected:
@@ -180,9 +242,21 @@ def assemble_prompt(root: Path, selected):
     return "\n\n".join(chunks)
 
 
+def assemble_injected_prompt(selected_rules, task_text: str):
+    rules_block = "\n\n".join(compact_rule_text(rule) for rule in selected_rules)
+    return (
+        "You are a software engineer. Complete the user's task while strictly adhering to the architectural rules provided below.\n\n"
+        "## Architectural Rules\n"
+        f"{rules_block}\n\n"
+        "## User Task\n"
+        f"{task_text.strip()}\n"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Deterministic rule selector for prompts")
-    parser.add_argument("prompt", help="User prompt text")
+    parser.add_argument("prompt", help="User prompt text used for retrieval")
+    parser.add_argument("--task", help="User task text injected in final prompt (defaults to prompt)")
     parser.add_argument("--index", default=str(DEFAULT_INDEX), help="Path to rules index JSON")
     parser.add_argument("--top-k", type=int, default=8, help="Number of rules to return")
     parser.add_argument(
@@ -192,7 +266,7 @@ def main():
     )
     parser.add_argument(
         "--format",
-        choices=["json", "prompt"],
+        choices=["json", "prompt", "injected"],
         default="json",
         help="Output format",
     )
@@ -204,17 +278,14 @@ def main():
 
     data = load_index(index_path)
     rules = data.get("rules", [])
+    rules_by_path = {r.get("path"): r for r in rules}
 
     prompt_tokens = tokenize(args.prompt)
     langs = infer_languages(prompt_tokens)
     topics = infer_topics(prompt_tokens)
 
     valid_categories = {"principles", "languages", "workflows"}
-    allowed_categories = {
-        c.strip().lower()
-        for c in args.category.split(",")
-        if c.strip()
-    }
+    allowed_categories = {c.strip().lower() for c in args.category.split(",") if c.strip()}
     allowed_categories = {c for c in allowed_categories if c in valid_categories}
     if not allowed_categories:
         allowed_categories = set(valid_categories)
@@ -224,22 +295,30 @@ def main():
     scored = []
     for rule in filtered:
         score, reasons = score_rule(rule, prompt_tokens, langs, topics)
-        scored.append({
-            "id": rule.get("id"),
-            "path": rule.get("path"),
-            "title": rule.get("title"),
-            "category": rule.get("category"),
-            "scope": rule.get("scope"),
-            "priority": rule.get("priority"),
-            "score": score,
-            "reasons": reasons,
-        })
+        scored.append(
+            {
+                "id": rule.get("id"),
+                "path": rule.get("path"),
+                "title": rule.get("title"),
+                "category": rule.get("category"),
+                "scope": rule.get("scope"),
+                "priority": rule.get("priority"),
+                "score": score,
+                "reasons": reasons,
+            }
+        )
 
     scored.sort(key=lambda x: (-x["score"], x["path"]))
     selected = scored[: args.top_k]
 
     if args.format == "prompt":
         print(assemble_prompt(ROOT, selected))
+        return
+
+    if args.format == "injected":
+        selected_rules = [rules_by_path[s["path"]] for s in selected if s.get("path") in rules_by_path]
+        task_text = args.task or args.prompt
+        print(assemble_injected_prompt(selected_rules, task_text))
         return
 
     out = {
@@ -256,3 +335,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
