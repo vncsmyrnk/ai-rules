@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT_DIRS = ["principles", "languages", "workflows"]
-DEFAULT_OUTPUT = ROOT / "index" / "rules-index.json"
+DEFAULT_OUTPUT = ROOT / ".cache" / "rules-index.json"
 
 
 def parse_frontmatter(text: str):

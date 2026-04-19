@@ -8,7 +8,7 @@ This project provides a structured set of guidelines, principles, workflows, and
 - **`workflows/`**: Task-specific execution workflows.
 - **`languages/`**: Language-specific coding guidelines.
 - **`bin/`**: CLI tools for indexing and selecting rules.
-- **`index/`**: Generated deterministic rule index.
+- **`.cache/`**: Generated deterministic rule index.
 
 ## Rule selection MVP
 
@@ -24,7 +24,7 @@ The project now includes a deterministic minimum viable retrieval pipeline:
 
 - `./bin/rules-index`
 
-This generates `index/rules-index.json` with stable ordering.
+This generates `.cache/rules-index.json` with stable ordering.
 
 ### Select rules from a prompt
 

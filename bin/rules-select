@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INDEX = ROOT / "index" / "rules-index.json"
+DEFAULT_INDEX = ROOT / ".cache" / "rules-index.json"
 
 LANG_HINTS = {
     "go": {"go", "golang"},
