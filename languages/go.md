@@ -1,36 +1,75 @@
 ---
+id: lang-go
+scope: language
 tags:
   - language
   - go
   - golang
+references:
+  - https://go.dev/doc/effective_go
+  - https://github.com/golang/go/wiki/CodeReviewComments
+  - https://github.com/uber-go/guide
 ---
 
 # Go (Golang) Guidelines
 
-## Introduction
-Go is designed for simplicity, concurrency, and performance. Its design philosophy favors straightforward, readable code over clever tricks or complex abstractions.
+## Principle
+Write clear, idiomatic, and maintainable Go with explicit error handling and minimal abstraction.
 
-**Crucial Instruction for AI Agents:** Always search for the latest packages and documentation on [pkg.go.dev](https://pkg.go.dev) and [go.dev/doc](https://go.dev/doc). Validate your assumptions by checking official standard library implementations when in doubt.
+## Source priority
+1. Effective Go
+2. Go Code Review Comments
+3. Uber Go Style Guide
+4. Standard library docs and source (`pkg.go.dev`)
 
-## Best Practices
-- **Effective Go:** Always follow the conventions outlined in [Effective Go](https://go.dev/doc/effective_go) and [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments).
-- **Error Handling:** Errors in Go are values. Always handle them explicitly. Never use `_` to ignore an error unless you have a rigorously documented reason. 
-- **Concurrency:** Use goroutines and channels for concurrent state, but prefer simpler synchronization (like `sync.Mutex`) if the concurrency is just protecting shared state. "Do not communicate by sharing memory; instead, share memory by communicating."
-- **Interfaces:** Define interfaces where they are used (consumer side), not where they are implemented (producer side). Keep them small (e.g., `io.Reader`, `io.Writer`).
-- **Formatting:** Always run `gofmt` or `goimports` on generated code.
+## Apply when
+- Writing or modifying Go code, tests, packages, or services.
 
-## Code Smells to Avoid
-- **Deep Nesting:** Return early to avoid deeply nested `if` statements (the "line of sight" rule).
-- **Package-Level State:** Avoid global variables and `init()` functions that set up complex hidden state.
-- **Overusing Interfaces:** Don't create an interface for a struct unless there is more than one implementation or it is required for mocking in tests.
-- **Ignoring Contexts:** Always pass `context.Context` as the first argument to functions that do I/O or RPC to handle timeouts and cancellation.
+## Do
+- Run `gofmt` (or `goimports`) on every change.
+- Keep package names short, lowercase, and meaningful.
+- Add comments to exported identifiers starting with the identifier name.
+- Handle errors explicitly; wrap with `%w` when propagating context.
+- Return early to reduce nesting.
+- Pass `context.Context` as the first parameter for request-scoped work.
+- Define interfaces at the consumer side; keep them small.
+- Prefer composition over inheritance-like patterns.
+- Write table-driven tests where useful; run `go test` and `go test -race` when concurrency is involved.
+- Use standard tools: `go vet`, `staticcheck` (if available).
 
-## Battle-Tested Frameworks and Patterns
-- **Standard Library:** Prefer `net/http` for routing and HTTP servers. The standard library is extremely powerful.
-- **Web Frameworks:** [Gin](https://gin-gonic.com/) or [Echo](https://echo.labstack.com/) for high-performance REST APIs.
-- **Database:** `database/sql` combined with [sqlx](https://github.com/jmoiron/sqlx) or [pgx](https://github.com/jackc/pgx) for PostgreSQL. Avoid heavy ORMs unless specifically requested; prefer raw SQL or query builders like [Squirrel](https://github.com/Masterminds/squirrel).
+## Do not
+- Ignore errors with `_` without a clear reason.
+- Use `panic` for normal control flow.
+- Add interfaces or layers with only one trivial implementation.
+- Use `init()` for hidden complex setup.
+- Create package-level mutable state unless required and synchronized.
 
-## Quoting Official Docs
-> "Clear is better than clever." — Go Proverbs
->
-> "Errors are just values... The most important lesson to learn about error handling in Go is that it is just programming." — [Error handling and Go](https://go.dev/blog/error-handling-and-go)
+## API and style specifics
+- Accept interfaces, return concrete types when practical.
+- Keep zero values useful.
+- Use initialisms consistently (`HTTPServer`, `userID`).
+- Keep receiver names short and consistent (`func (s *Service) ...`).
+
+## Example
+````go
+// bad
+func Fetch(id string) (User, error) {
+    u, _ := repo.Load(id)
+    return u, nil
+}
+
+// good
+func Fetch(ctx context.Context, id string, repo UserRepo) (User, error) {
+    u, err := repo.Load(ctx, id)
+    if err != nil {
+        return User{}, fmt.Errorf("load user %s: %w", id, err)
+    }
+    return u, nil
+}
+````
+
+## Checklist
+- Is code formatted and idiomatic?
+- Are errors handled and wrapped with context?
+- Is `context.Context` used correctly?
+- Are abstractions justified by real usage?

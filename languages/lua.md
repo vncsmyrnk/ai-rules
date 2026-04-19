@@ -1,31 +1,54 @@
 ---
+id: lang-lua
+scope: language
 tags:
   - language
   - lua
+references:
+  - https://www.lua.org/manual/5.4/
+  - https://luarocks.org/
 ---
 
 # Lua Guidelines
 
-## Introduction
-Lua is a powerful, efficient, lightweight, embeddable scripting language. It is commonly used in game development, embedded systems, and for scripting existing applications.
+## Principle
+Prefer explicit, local, and simple Lua code with predictable table and module patterns.
 
-**Crucial Instruction for AI Agents:** Always search the [Lua 5.4 Reference Manual](https://www.lua.org/manual/5.4/) (or the specific version in use) and [LuaRocks](https://luarocks.org/) for packages. Validate syntax and idiomatic usage, especially concerning metamethods and environments.
+## Apply when
+- Writing Lua scripts, modules, plugins, or embedded runtime logic.
 
-## Best Practices
-- **Local Variables:** **Always** declare variables as `local`. Global variables are the default in Lua if `local` is omitted, which pollutes the global namespace and significantly hurts performance.
-- **Tables for Everything:** Tables are Lua's only data structuring mechanism. Use them for arrays (1-based), dictionaries, objects, and modules.
-- **1-Based Indexing:** Remember that standard Lua arrays (sequences) start at index `1`, not `0`. The length operator `#` only works reliably on sequences without "holes" (nil values).
-- **Modules:** Return a local table from a file to create a module. Avoid the deprecated `module()` function.
+## Do
+- Declare variables as `local` by default.
+- Use tables intentionally: sequence vs map semantics.
+- Remember arrays are 1-based.
+- Build modules by returning a local table.
+- Use `pcall`/`xpcall` for recoverable boundaries.
+- Use `table.concat` for large string assembly.
+- Run `stylua` and `luacheck` when available.
 
-## Code Smells to Avoid
-- **Unintended Globals:** Forgetting the `local` keyword. Use linters like `luacheck` to catch these.
-- **Metatable Abuse:** While metatables (using `__index`, `__newindex`, etc.) are powerful for OOP and operator overloading, overusing them makes code hard to follow and debug.
-- **String Concatenation in Loops:** Use `table.concat()` when building large strings instead of the `..` operator inside a loop to avoid excessive memory allocation.
+## Do not
+- Create unintended globals.
+- Depend on `#` for sparse arrays with holes.
+- Overuse metatables when plain functions/tables are enough.
+- Mutate shared module state without clear ownership.
 
-## Battle-Tested Frameworks and Patterns
-- **Game Development:** [LÖVE (Love2D)](https://love2d.org/) is the standard framework for 2D games.
-- **Web and API:** [OpenResty](https://openresty.org/) embeds Lua into Nginx for ultra-high performance web applications.
-- **Testing:** [Busted](https://olivinelabs.com/busted/) for unit testing.
+## Performance and safety basics
+- Cache hot global lookups locally in tight loops.
+- Validate untrusted input and table shapes at boundaries.
+- Keep metamethod behavior minimal and documented.
 
-## Quoting Official Docs
-> "Local variables have their scope limited to the block where they are declared... It is good programming style to use local variables whenever possible." — [Programming in Lua](https://www.lua.org/pil/4.2.html)
+## Example
+````lua
+-- bad
+count = count + 1
+
+-- good
+local count = 0
+count = count + 1
+````
+
+## Checklist
+- Are variables local unless explicitly global?
+- Are table semantics (array/map) clear?
+- Is error handling explicit at boundary calls?
+- Is module state controlled?
