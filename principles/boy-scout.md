@@ -6,24 +6,49 @@ tags:
   - clean-code
 ---
 
-# The Boy Scout Rule
+# Boy Scout Rule
 
 ## Principle
-"Always leave the campground cleaner than you found it." 
+Leave touched code slightly better than you found it.
 
-In software development, this means that whenever you touch a piece of code, you should strive to leave it in a slightly better state than it was before. 
+## Intent
+Improve local code quality continuously without expanding scope.
 
-## Instructions for AI Agents
-When modifying a file to implement a feature or fix a bug, actively look for minor, low-risk improvements you can make in the immediate vicinity of your changes. 
+## Apply when
+- You are already editing a file for a requested task.
 
-**Do:**
-- Fix obvious typos in comments or variable names.
-- Remove unused variables or imports.
-- Improve the naming of a poorly named local variable.
-- Reformat misaligned code to match the surrounding style.
-- Extract a complex conditional into a well-named boolean variable if it improves readability.
+## Do
+- Fix nearby low-risk issues (typos, naming, dead imports/vars, minor formatting).
+- Keep cleanup in the same area as the primary change.
+- Keep cleanup small (target: <= 20% of changed lines).
 
-**Do Not:**
-- Embark on massive refactoring missions outside the scope of your primary task.
-- Change the public API or behavior of classes/functions unless explicitly requested.
-- Let the "cleanup" obscure the primary intent of the commit/change.
+## Do not
+- Start broad refactors unrelated to the requested task.
+- Change public behavior/API unless requested.
+- Hide the main purpose of the change with cleanup noise.
+
+## Trade-offs
+- Small local improvements increase maintainability.
+- Excess cleanup increases review risk and delivery time.
+
+## Conflict resolution
+- Priority order: Correctness > Existing project conventions > Pragmatic Consensus > Architecture rules > Boy Scout cleanup.
+- If cleanup conflicts with delivery scope, reduce cleanup.
+
+## Example (pseudo)
+```pseudo
+# bad
+change(feature)
+rename_many_unrelated_modules()
+
+# good
+change(feature)
+fix_local_typo()
+remove_local_unused_import()
+```
+
+## Checklist
+- Is every cleanup change local to edited code?
+- Is behavior unchanged (unless requested)?
+- Is cleanup volume small vs primary change?
+

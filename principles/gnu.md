@@ -7,23 +7,50 @@ tags:
   - cli
 ---
 
-# GNU Coding Standards & Philosophy
+# CLI GNU/POSIX Conventions
 
 ## Principle
-The GNU project advocates for software freedom, portability, and standardized user interfaces. When writing command-line tools or system software, adhering to GNU/POSIX standards ensures that tools behave predictably and integrate seamlessly into the Unix-like ecosystem.
+CLI tools should follow standard UNIX/GNU behavior.
 
-## Instructions for AI Agents
-When generating or modifying command-line interfaces (CLI) and scripts, enforce standard UNIX/GNU conventions.
+## Intent
+Maximize predictability, scriptability, and pipeline compatibility.
 
-**Do:**
-- Support standard flags: `--help` (or `-h`) for usage and `--version` (or `-v`) for version info.
-- Accept long-form options (`--option`) and short-form options (`-o`).
-- Send standard output (data meant for pipelines) to `stdout`.
-- Send diagnostics, prompts, debug info, and error messages to `stderr`.
-- Return `0` for success and non-zero (e.g., `1`) for failure.
-- Allow arguments to be provided via standard input (`stdin`) if appropriate.
+## Apply when
+- Creating or modifying CLI commands or shell scripts.
 
-**Do Not:**
-- Invent custom, non-standard flags for common operations (e.g., using `-?` instead of `-h`).
-- Print error messages to `stdout`, which can break chained commands in a pipeline.
-- Ignore the exit status of commands run within a script.
+## Do
+- Provide `-h`/`--help` and `-v`/`--version` when relevant.
+- Support short and long options.
+- Write data output to `stdout`.
+- Write errors/diagnostics to `stderr`.
+- Return `0` on success and non-zero on failure.
+
+## Do not
+- Use non-standard flags for common behavior.
+- Print errors to `stdout`.
+- Ignore exit status from invoked commands.
+
+## Trade-offs
+- Standard behavior improves interoperability.
+- Strict conventions may add small implementation overhead.
+
+## Conflict resolution
+- If project CLI conventions exist, follow them first.
+- Priority order: Correctness > Existing project conventions > GNU/POSIX conventions > Boy Scout cleanup.
+
+## Example (pseudo)
+```pseudo
+# bad
+if error then print_stdout("failed")
+exit(0)
+
+# good
+if error then print_stderr("failed")
+exit(1)
+```
+
+## Checklist
+- Are help/version flags available where appropriate?
+- Are stdout/stderr separated correctly?
+- Are exit codes meaningful?
+

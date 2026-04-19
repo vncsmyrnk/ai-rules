@@ -10,18 +10,45 @@ tags:
 # Pragmatic Consensus
 
 ## Principle
-Pragmatic Consensus is the balance between theoretical architectural purity and the practical realities of delivering software within a team. It means choosing the "good enough" solution that the entire team can understand, maintain, and agree upon, rather than dogmatically enforcing complex "best practices" that slow down development or create cognitive overload.
+Choose the simplest solution the team can understand, maintain, and ship.
 
-## Instructions for AI Agents
-When suggesting solutions or generating code, prioritize clarity, maintainability, and standard language idioms over over-engineered abstractions.
+## Intent
+Balance ideal architecture with delivery speed and team clarity.
 
-**Do:**
-- Favor simple, procedural, or functional code for straightforward tasks instead of heavy object-oriented hierarchies.
-- Choose native standard library features over introducing new third-party dependencies when reasonable.
-- Respect the existing conventions and style of the codebase, even if they differ slightly from theoretical ideals.
-- Document *why* a particular trade-off was made if choosing a less "pure" but more pragmatic approach.
+## Apply when
+- Multiple valid implementations exist.
+- A “pure” approach increases complexity without clear value.
 
-**Do Not:**
-- Introduce complex design patterns (like Abstract Factories or generic metaprogramming) unless the problem's complexity strictly requires it.
-- Optimize prematurely for performance or scale before a bottleneck is proven.
-- Refactor working, readable code purely for the sake of conforming to an abstract architectural rule.
+## Do
+- Prefer simple, idiomatic solutions.
+- Reuse standard library/platform features before adding dependencies.
+- Follow established project conventions.
+- Document key trade-offs briefly when needed.
+
+## Do not
+- Introduce complex patterns without clear need.
+- Optimize prematurely.
+- Refactor readable working code only for theoretical purity.
+
+## Trade-offs
+- Faster delivery and lower cognitive load.
+- May defer “ideal” architecture until justified.
+
+## Conflict resolution
+- Tie-breaker rule for architecture disagreements.
+- Priority order: Correctness > Existing project conventions > Pragmatic Consensus > Other design principles > Boy Scout cleanup.
+
+## Example (pseudo)
+```pseudo
+# bad
+add_factory_builder_strategy_for_simple_parse()
+
+# good
+parse_config_with_standard_library()
+```
+
+## Checklist
+- Is the solution understandable by the current team?
+- Is added abstraction justified by current complexity?
+- Did we avoid unnecessary dependencies/patterns?
+

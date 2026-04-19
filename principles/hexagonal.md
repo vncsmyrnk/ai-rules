@@ -10,21 +10,49 @@ tags:
 # Hexagonal Architecture (Ports and Adapters)
 
 ## Principle
-Hexagonal Architecture, or Ports and Adapters, aims to create loosely coupled application components that can be easily connected to their software environment. It makes the application agnostic to the nature of the clients interacting with it (UI, test runners, other apps) and the infrastructure it uses (databases, message queues).
+Domain logic communicates through ports; adapters handle external systems.
 
-- **Core Application:** Contains the domain logic.
-- **Ports:** Interfaces defined by the Core that dictate how it can be controlled (Driving/Primary Ports) and how it can control external dependencies (Driven/Secondary Ports).
-- **Adapters:** Implementations that connect the outside world to the Ports.
+## Intent
+Keep the core independent from transport, storage, and vendor details.
 
-## Instructions for AI Agents
-Structure the codebase so that the domain logic does not depend on technical implementation details.
+## Apply when
+- The app has multiple external dependencies (DB, queue, API, UI).
+- You need high testability and replaceable integrations.
 
-**Do:**
-- Define interfaces (Ports) inside the domain layer for any external service (e.g., Database, Email Service).
-- Write adapters outside the domain layer that implement these interfaces.
-- Ensure the domain layer only imports domain code, never external libraries or adapters.
-- Use this architecture to make the core logic highly testable in isolation.
+## Do
+- Define ports in the application/domain boundary.
+- Implement adapters outside the core.
+- Keep domain imports limited to domain/application code.
 
-**Do Not:**
-- Hardcode database connection logic within service classes.
-- Leak HTTP request objects (like Express `req` or Django `request`) into the domain layer.
+## Do not
+- Embed database/network/framework calls in domain services.
+- Pass transport objects directly into domain logic.
+
+## Trade-offs
+- Strong isolation and testability.
+- Extra abstractions for small/simple applications.
+
+## Conflict resolution
+- Prefer simpler layering for low-complexity features (Pragmatic Consensus).
+- Priority order: Correctness > Existing project conventions > Pragmatic Consensus > Hexagonal Architecture > Boy Scout cleanup.
+
+## Example (pseudo)
+```pseudo
+# bad
+domain_service(request, sql_client) {
+  row = sql_client.query(request.id)
+  return row
+}
+
+# good
+domain_service(load_user_port, user_id) {
+  user = load_user_port.load(user_id)
+  return user
+}
+```
+
+## Checklist
+- Are external calls isolated in adapters?
+- Are ports defined at core boundaries?
+- Can core logic be tested without real infrastructure?
+
