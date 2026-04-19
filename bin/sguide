@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# vim: set ft=sh:
+
+RULES_PATH=${RULES_PATH:-.}
+
+input="$*"
+if [[ -z "$input" ]]; then
+  echo "Usage: sguide <tags-separated-by-commas>"
+  exit 1
+fi
+
+tag_query_regexp="(${input//,/|})"
+
+rg -U -l \
+  "(?s)^---\\s*.*?\\ntags:\\s*.*\\n.*$tag_query_regexp.*\\n?\\n---" \
+  "$RULES_PATH"
